@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel & CSV Data Visualizer with AI</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.3/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        input[type="file"] {
+            display: block;
+            margin: 0 auto;
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        #dataContainer,
+        #visualizationContainer,
+        #aiModelResult {
+            margin-top: 40px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        table,
+        th,
+        td {
+            border: 1px solid #ddd;
+        }
+
+        th,
+        td {
+            padding: 10px;
+            text-align: center;
+        }
+
+        canvas {
+            max-width: 100%;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            background-color: #45a049;
+        }
+
+        select,
+        button {
+            margin-top: 20px;
+            font-size: 16px;
+        }
+
+        #predictionResult {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>Excel & CSV Data Visualizer with AI</h1>
+
+        <!-- File upload form -->
+        <input type="file" id="fileUpload" accept=".xlsx, .xls, .csv" onchange="handleFileUpload(event)">
+
+        <div id="dataContainer">
+            <h2>Extracted Data</h2>
+            <table id="dataTable">
+                <thead>
+                    <tr></tr> <!-- Dynamic table headers will be inserted here -->
+                </thead>
+                <tbody>
+                    <!-- Dynamic table rows will be inserted here -->
+                </tbody>
+            </table>
+        </div>
+
+        <div>
+            <button class="btn" onclick="preprocessData()">Remove Missing Data</button>
+            <button class="btn" onclick="normalizeData()">Normalize Data</button>
+        </div>
+
+        <div id="visualizationContainer">
+            <h2>Data Visualization</h2>
+            <label for="chartType">Select Chart Type: </label>
+            <select id="chartType">
+                <option value="line">Line Chart</option>
+                <option value="bar">Bar Chart</option>
+                <option value="pie">Pie Chart</option>
+                <option value="scatter">Scatter Chart</option>
+            </select>
+            <canvas id="dataChart"></canvas>
+        </div>
+
+        <div id="aiModelResult">
+            <h2>AI Insights</h2>
+            <p id="predictionResult"></p>
+        </div>
+    </div>
+
+    <script>
+        let data = [];
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) {
+                alert("Please upload an Excel or CSV file.");
+                return;
+            }
+
+            const reader = new FileReader();
+
+            if (file.name.endsWith('.csv')) {
+                reader.onload = function (e) {
+                    const csvData = e.target.result;
+                    const parsedData = parseCSV(csvData);
+                    data = parsedData;
+                    displayData(data);
+                    displayVisualization(data);
+                    runAIModel(data);
+                };
+                reader.readAsText(file);
+            } else {
+                reader.onload = function (e) {
+                    const binaryStr = e.target.result;
+                    const workbook = XLSX.read(binaryStr, { type: 'binary' });
+                    const sheetName = workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[sheetName];
+                    const parsedData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                    data = parsedData;
+                    displayData(data);
+                    displayVisualization(data);
+                    runAIModel(data);
+                };
+                reader.readAsBinaryString(file);
+            }
+        }
+
+        function parseCSV(csvData) {
+            const rows = csvData.split('\n').map(row => row.split(','));
+            return rows;
+        }
+
+        function displayData(data) {
+            const table = document.getElementById("dataTable");
+            const headers = data[0];
+            const rows = data.slice(1);
+
+            // Clear previous table data
+            table.innerHTML = '';
+
+            // Insert table headers
+            const headerRow = table.insertRow();
+            headers.forEach(header => {
+                const th = document.createElement('th');
+                th.textContent = header;
+                headerRow.appendChild(th);
+            });
+
+            // Insert table rows
+            rows.forEach(row => {
+                const tableRow = table.insertRow();
+                row.forEach(cell => {
+                    const td = tableRow.insertCell();
+                    td.textContent = cell;
+                });
+            });
+        }
+
+        function displayVisualization(data) {
+            const labels = data[0].slice(1); // Assuming the first row is headers
+            const values = data.slice(1).map(row => row[1]); // Extracting data from the first column of the rest of the rows
+
+            const chartType = document.getElementById("chartType").value; // Get selected chart type from user input
+
+            // Create a chart using Chart.js
+            const ctx = document.getElementById("dataChart").getContext("2d");
+            const chart = new Chart(ctx, {
+                type: chartType,
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Data Visualization',
+                        data: values,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: chartType === 'bar' ? 'rgba(75, 192, 192, 0.2)' : 'transparent',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function (tooltipItem) {
+                                    return tooltipItem.raw.toFixed(2); // Display value with 2 decimal places
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function runAIModel(data) {
+            const numbers = data.slice(1).map(row => row[1]); // Assuming numeric data in the second column
+            const labels = data[0].slice(1); // Labels are the first row, excluding the first column
+
+            // Prepare training data
+            const x = numbers.map((_, index) => index); // Use index as independent variable
+            const y = numbers; // Dependent variable: the actual data values
+
+            // Convert arrays into TensorFlow tensors
+            const xTensor = tf.tensor1d(x);
+            const yTensor = tf.tensor1d(y);
+
+            // Define a simple linear regression model
+            const model = tf.sequential();
+            model.add(tf.layers.dense({ units: 1, inputShape: [1] }));
+            model.compile({ optimizer: 'sgd', loss: 'meanSquaredError' });
+
+            // Train the model
+            model.fit(xTensor, yTensor, { epochs: 100 }).then(() => {
+                // Predict using the model
+                const output = model.predict(xTensor);
+
+                // Get predicted values and display them
+                output.data().then(predictions => {
+                    const predictedResults = predictions.map(prediction => prediction.toFixed(2));
+                    const result = document.getElementById('predictionResult');
+                    result.textContent = `AI Model Prediction (Linear Regression): ${predictedResults.join(', ')}`;
+                });
+            });
+        }
+
+        function preprocessData() {
+            // Remove rows with missing values
+            data = data.filter(row => !row.includes('')); // Assuming missing values are represented as empty cells
+            displayData(data); // Re-display the cleaned data
+        }
+
+        function normalizeData() {
+            const values = data.slice(1).map(row => row[1]); // Assuming data in second column
+            const min = Math.min(...values);
+            const max = Math.max(...values);
+
+            // Normalize the data (min-max scaling)
+            const normalizedData = values.map(value => (value - min) / (max - min));
+
+            // Replace the original data with normalized data for visualization
+            for (let i = 1; i < data.length; i++) {
+                data[i][1] = normalizedData[i - 1]; // Update the values in the data array
+            }
+
+            displayData(data); // Re-display the normalized data
+        }
+    </script>
+
+</body>
+
+</html>
