@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel & CSV Data Visualizer with AI Models</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.3/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ml5@0.8.5/dist/ml5.min.js"></script> <!-- ML5.js for AI models -->
+    <script src="https://cdn.jsdelivr.net/npm/p5.js"></script> <!-- P5.js for visualizations -->
+    <style>
+        /* Basic styling */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 50px auto;
+            padding: 30px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        input[type="file"] {
+            font-size: 16px;
+            cursor: pointer;
+            display: block;
+            margin: 0 auto;
+            padding: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+
+        .btn:hover {
+            background-color: #45a049;
+        }
+
+        #dataContainer, #visualizationContainer, #aiModelResult, #chartsContainer {
+            margin-top: 30px;
+        }
+
+        select, button {
+            font-size: 16px;
+            margin-top: 20px;
+        }
+
+        canvas {
+            max-width: 100%;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: center;
+        }
+
+        #predictionResult {
+            margin-top: 20px;
+        }
+
+        #chartsContainer {
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>Excel & CSV Data Visualizer with AI Models</h1>
+
+        <!-- File upload form -->
+        <input type="file" id="fileUpload" accept=".xlsx, .xls, .csv" onchange="handleFileUpload(event)">
+
+        <!-- Data Table -->
+        <div id="dataContainer">
+            <h2>Extracted Data</h2>
+            <table id="dataTable">
+                <thead>
+                    <tr></tr> <!-- Dynamic table headers will be inserted here -->
+                </thead>
+                <tbody>
+                    <!-- Dynamic table rows will be inserted here -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Data Preprocessing Buttons -->
+        <div>
+            <button class="btn" onclick="preprocessData()">Remove Missing Data</button>
+            <button class="btn" onclick="normalizeData()">Normalize Data</button>
+        </div>
+
+        <!-- Chart Type Selection and Data Visualization -->
+        <div id="visualizationContainer">
+            <h2>Data Visualization</h2>
+            <label for="chartType">Select Chart Type: </label>
+            <select id="chartType">
+                <option value="line">Line Chart</option>
+                <option value="bar">Bar Chart</option>
+                <option value="pie">Pie Chart</option>
+                <option value="scatter">Scatter Chart</option>
+            </select>
+            <canvas id="dataChart"></canvas>
+        </div>
+
+        <!-- AI Model Section -->
+        <div id="aiModelResult">
+            <h2>AI Model Insights</h2>
+            <select id="aiModelSelect">
+                <option value="linearRegression">Linear Regression</option>
+                <option value="decisionTree">Decision Tree</option>
+                <option value="kMeans">K-Means Clustering</option>
+                <option value="classification">Classification (Logistic Regression)</option>
+            </select>
+            <button class="btn" onclick="runAIModel()">Run AI Model</button>
+            <p id="predictionResult"></p>
+        </div>
+
+        <!-- Advanced Visualization of AI Models -->
+        <div id="chartsContainer">
+            <canvas id="scatterChart" width="400" height="300"></canvas>
+            <canvas id="decisionBoundaryChart" width="400" height="300"></canvas>
+        </div>
+
+    </div>
+
+    <script>
+        let data = [];
+        let features = [];
+        let labels = [];
+
+        // File Upload
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+
+            if (file.name.endsWith('.csv')) {
+                reader.onload = function (e) {
+                    const csvData = e.target.result;
+                    const parsedData = parseCSV(csvData);
+                    data = parsedData;
+                    displayData(data);
+                    displayVisualization(data);
+                };
+                reader.readAsText(file);
+            } else {
+                reader.onload = function (e) {
+                    const binaryStr = e.target.result;
+                    const workbook = XLSX.read(binaryStr, { type: 'binary' });
+                    const sheetName = workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[sheetName];
+                    const parsedData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                    data = parsedData;
+                    displayData(data);
+                    displayVisualization(data);
+                };
+                reader.readAsBinaryString(file);
+            }
+        }
+
+        // Parse CSV
+        function parseCSV(csvData) {
+            const rows = csvData.split('\n').map(row => row.split(','));
+            return rows;
+        }
+
+        // Display Data in Table
+        function displayData(data) {
+            const table = document.getElementById("dataTable");
+            const headers = data[0];
+            const rows = data.slice(1);
+
+            table.innerHTML = '';
+            const headerRow = table.insertRow();
+            headers.forEach(header => {
+                const th = document.createElement('th');
+                th.textContent = header;
+                headerRow.appendChild(th);
+            });
+
+            rows.forEach(row => {
+                const tableRow = table.insertRow();
+                row.forEach(cell => {
+                    const td = tableRow.insertCell();
+                    td.textContent = cell;
+                });
+            });
+
+            // Set up features and labels for AI models
+            features = data.slice(1).map(row => row.slice(0, -1)); // All columns except last for features
+            labels = data.slice(1).map(row => row.slice(-1)); // Last column for labels
+        }
+
+        // Visualize Data
+        function displayVisualization(data) {
+            const labels = data[0].slice(1);
+            const values = data.slice(1).map(row => row[1]);
+
+            const chartType = document.getElementById("chartType").value;
+
+            const ctx = document.getElementById("dataChart").getContext("2d");
+            const chart = new Chart(ctx, {
+                type: chartType,
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Data Visualization',
+                        data: values,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: chartType === 'bar' ? 'rgba(75, 192, 192, 0.2)' : 'transparent',
+                        tension: 0.1
+                    }]
+                }
+            });
+        }
+
+        // AI Model: Linear Regression (Basic)
+        async function runAIModel() {
+            const modelType = document.getElementById("aiModelSelect").value;
+
+            switch (modelType) {
+                case 'linearRegression':
+                    await linearRegression();
+                    break;
+                case 'decisionTree':
+                    await decisionTree();
+                    break;
+                case 'kMeans':
+                    await kMeansClustering();
+                    break;
+                case 'classification':
+                    await classificationModel();
+                    break;
+            }
+        }
+
+        // Linear Regression Model
+        async function linearRegression() {
+            const values = data.slice(1).map(row => row[1]); // Numeric values from the second column
+            const xTensor = tf.tensor1d(values);
+            const yTensor = tf.tensor1d(labels);
+
+            const model = tf.sequential();
+            model.add(tf.layers.dense({ units: 1, inputShape: [1] }));
+            model.compile({ optimizer: 'sgd', loss: 'meanSquaredError' });
+
+            await model.fit(xTensor, yTensor, { epochs: 100 });
+
+            const output = model.predict(xTensor);
+            output.data().then(predictions => {
+                const predictedResults = predictions.map(prediction => prediction.toFixed(2));
+                document.getElementById("predictionResult").textContent = `AI Model Prediction (Linear Regression): ${predictedResults.join(', ')}`;
+            });
+        }
+
+        // Decision Tree Model (Using ML5.js)
+        async function decisionTree() {
+            const options = {
+                task: 'classification',
+                data: features,
+                labels: labels
+            };
+
+            const model = await ml5.neuralNetwork(options);
+
+            model.train({ epochs: 100 }, () => {
+                model.predict(features, (err, results) => {
+                    console.log('Predictions:', results);
+                    document.getElementById("predictionResult").textContent = `Decision Tree Prediction: ${results}`;
+                });
+            });
+        }
+
+        // K-Means Clustering (ML5.js)
+        function kMeansClustering() {
+            const kmeans = ml5.kmeans(features, 3, (err, result) => {
+                if (err) {
+                    console.error(err);
+                } else {
+                    console.log('Clustering result:', result);
+                }
+            });
+        }
+
+        // Classification Model (Logistic Regression)
+        function classificationModel() {
+            const classifier = ml5.logistic(features, labels, () => {
+                console.log('Logistic Regression model ready!');
+            });
+        }
+
+        // Data Preprocessing: Remove Missing Data
+        function preprocessData() {
+            data = data.filter(row => !row.includes('')); // Remove rows with missing data
+            displayData(data);
+        }
+
+        // Normalize Data (Min-Max Scaling)
+        function normalizeData() {
+            const values = data.slice(1).map(row => row[1]);
+            const min = Math.min(...values);
+            const max = Math.max(...values);
+
+            const normalizedData = values.map(value => (value - min) / (max - min));
+            document.getElementById("predictionResult").textContent = `Normalized Data: ${normalizedData.join(', ')}`;
+        }
+    </script>
+
+</body>
+</html>
