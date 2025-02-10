@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Dashboard</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-gap: 20px;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .dashboard-panel {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .panel-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #007bff;
+        }
+
+        .chart-container {
+            height: 200px;
+        }
+
+        /* ... (other styles from previous examples) */
+    </style>
+</head>
+<body>
+
+<div class="dashboard-container">
+    </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+
+<script>
+    // ... (file upload, table population, filtering, sorting, export functions - same as before)
+
+    let salesChart, demographicsChart, kmeansChart;
+
+    function analyzeData() {
+        if (tableData.length === 0) return;
+
+        // ... (sales trend and demographics charts - same as before)
+
+        // 3. Linear Regression (example: 'x' and 'y' columns)
+        const x = tableData.map(row => row.x).filter(val => typeof val === 'number' && !isNaN(val)); // Filter for numbers
+        const y = tableData.map(row => row.y).filter(val => typeof val === 'number' && !isNaN(val)); // Filter for numbers
+
+        if (x.length < 2 || y.length < 2) { // Need at least 2 points for regression
+            document.getElementById('linearRegressionResults').innerHTML = "<p>Not enough numeric data for linear regression.</p>";
+        } else {
+            const linearRegressionModel = trainLinearRegression(x, y);
+            const regressionResultsDiv = document.getElementById('linearRegressionResults');
+            regressionResultsDiv.innerHTML = `<p>Linear Regression: Slope = ${linearRegressionModel.slope.toFixed(2)}, Intercept = ${linearRegressionModel.intercept.toFixed(2)}</p>`;
+        }
+
+
+
+        // 4. K-Means Clustering (example: 'x' and 'y' columns)
+        const dataPoints = tableData.map(row => [row.x, row.y]).filter(point => point.every(val => typeof val === 'number' && !isNaN(val))); // Filter numeric points
+
+        if (dataPoints.length < 2) {
+            document.getElementById('kmeansResults').innerHTML = "<p>Not enough numeric data points for K-Means.</p>";
+        } else {
+            const k = Math.min(3, dataPoints.length); // Number of clusters (limit to available data points)
+            const kmeans = new KMeans(dataPoints, k);
+            kmeans.run(100);
+            const clusters = kmeans.getClusters();
+
+            const kmeansResultsDiv = document.getElementById('kmeansResults');
+            kmeansResultsDiv.innerHTML = `<p>K-Means Clustering Results (Cluster Centers: ${JSON.stringify(kmeans.centroids)})</p>`;
+            createScatterPlot('kmeansChart', dataPoints, clusters, 'K-Means Clustering', 'X', 'Y');
+        }
+
+
+
+        // 5. Descriptive Statistics (example: 'age' column)
+        const ages = tableData.map(row => row.age).filter(age => typeof age === 'number' && !isNaN(age)); // Filter numeric ages
+        if (ages.length === 0) {
+            document.getElementById('descriptiveStats').innerHTML = "<p>No numeric age data available.</p>";
+        } else {
+            const stats = calculateDescriptiveStats(ages);
+            const statsDiv = document.getElementById('descriptiveStats');
+            statsDiv.innerHTML = `<p>Descriptive Statistics: Mean = ${stats.mean.toFixed(2)}, Median = ${stats.median}, Std Dev = ${stats.stdDev.toFixed(2)}</p>`;
+        }
+    }
+
+
+    // ... (createLineChart, createPieChart - same as before)
+
+    function createScatterPlot(canvasId, dataPoints, clusters, title, xlabel, ylabel) {
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        if (kmeansChart) kmeansChart.destroy();
+
+        const datasets = [];
+
+        for (let i = 0; i < clusters.length; i++) {
+            datasets.push({
+                label: `Cluster ${i + 1}`,
+                data: clusters[i].map(point => ({ x: point[0], y: point[1] })),
+                backgroundColor: getRandomColor() // Assign random color to each cluster
+            });
+        }
+
+        kmeansChart = new Chart(ctx, {
+            type: 'scatter',
+            data: { datasets },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: title
+                    }
+                },
+                scales: {
+                    x: { title: { display: true, text: xlabel } },
+                    y: { title: { display: true, text: ylabel } }
+                }
+            }
+        });
+    }
+
+    function getRandomColor() {
+        const r = Math.floor(Math.random() * 256);
+        const g = Math.floor(Math.random() * 256);
+        const b = Math.floor(Math.random() * 256);
+        return `rgba(${r}, ${g}, ${b}, 0.7)`; // Add some alpha for transparency
+    }
+
+
+    function trainLinearRegression(x, y) {
+        // ... (same as before)
+    }
+
+    class KMeans {
+        // ... (same as before)
+    }
+
+
+    function calculateDescriptiveStats(data) {
+        const n = data.length;
+        const sum = data.reduce((a, b) => a + b, 0);
+        const mean = sum / n;
+
+        const sortedData = [...data].sort((a, b) => a - b);
+        const median = n % 2 === 0 ? (sortedData[n / 2 - 1] + sortedData[n / 2]) / 2 : sortedData[Math.floor(n / 2)];
+
+        let sumOfSquares = 0;
+        for (let i = 0; i < n; i++) {
+            sumOfSquares += (data[i] - mean) ** 2;
+        }
+        const stdDev = Math.sqrt(sumOfSquares / (n - 1));
+
+        return { mean, median, stdDev };
+    }
+
+
+    // Call analyzeData() after a file is uploaded
+    const fileInput = document.getElementById('file-upload');
+    fileInput.addEventListener('change', analyzeData);
+
+</script>
+
+</body>
+</html>
