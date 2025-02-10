@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel Dashboard AI</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        input, select, button { margin: 10px; padding: 8px; }
+        table { width: 80%; margin: 20px auto; border-collapse: collapse; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+        th { background: #f4f4f4; }
+        canvas { max-width: 90%; margin: 20px auto; display: block; }
+        .stats { margin-top: 20px; padding: 10px; background: #f4f4f4; display: inline-block; }
+    </style>
+</head>
+<body>
+
+    <h2>📊 Excel Dashboard AI (Editable & Predictive)</h2>
+    <input type="file" id="fileInput" accept=".csv" onchange="handleFile()">
+    <select id="chartType" onchange="processData(globalData)">
+        <option value="scatter">Scatter Plot</option>
+        <option value="bar">Bar Chart</option>
+        <option value="line">Line Chart</option>
+        <option value="pie">Pie Chart</option>
+    </select>
+    <button onclick="downloadCSV()">📥 Download CSV</button>
+    
+    <h3>Editable Data Table:</h3>
+    <div id="tableContainer"></div>
+
+    <h3>📈 AI-Generated Statistics:</h3>
+    <div class="stats" id="statistics"></div>
+
+    <h3>📊 AI-Generated Chart:</h3>
+    <canvas id="chartCanvas"></canvas>
+
+    <script>
+        let globalData = [];
+        let xKey = "", yKey = "";
+        let chartInstance = null;
+
+        function handleFile() {
+            const file = document.getElementById("fileInput").files[0];
+            if (!file) return;
+
+            Papa.parse(file, {
+                complete: function (results) {
+                    globalData = results.data;
+                    generateTable(globalData);
+                    processData(globalData);
+                },
+                header: true
+            });
+        }
+
+        function generateTable(data) {
+            if (data.length === 0) return;
+
+            let keys = Object.keys(data[0]);
+            xKey = keys[0];
+            yKey = keys[1];
+
+            let tableHTML = "<table><tr>";
+            keys.forEach(key => tableHTML += `<th>${key}</th>`);
+            tableHTML += "</tr>";
+
+            data.forEach((row, rowIndex) => {
+                tableHTML += `<tr>`;
+                keys.forEach((key, colIndex) => {
+                    tableHTML += `<td contenteditable="true" oninput="updateData(${rowIndex}, '${key}', this.innerText)">${row[key]}</td>`;
+                });
+                tableHTML += "</tr>";
+            });
+
+            tableHTML += "</table>";
+            document.getElementById("tableContainer").innerHTML = tableHTML;
+        }
+
+        function updateData(rowIndex, key, value) {
+            globalData[rowIndex][key] = isNaN(value) ? value : parseFloat(value);
+            processData(globalData);
+        }
+
+        function processData(data) {
+            if (data.length < 2) return;
+
+            let xValues = data.map(row => parseFloat(row[xKey])).filter(v => !isNaN(v));
+            let yValues = data.map(row => parseFloat(row[yKey])).filter(v => !isNaN(v));
+
+            if (xValues.length === 0 || yValues.length === 0) return;
+
+            // Compute Statistics
+            let meanX = computeMean(xValues), meanY = computeMean(yValues);
+            let medianX = computeMedian(xValues), medianY = computeMedian(yValues);
+            let correlation = computeCorrelation(xValues, yValues);
+            let { slope, intercept } = computeLinearRegression(xValues, yValues);
+
+            // Display Statistics
+            document.getElementById("statistics").innerHTML = `
+                <strong>Statistics:</strong><br>
+                Mean X: ${meanX.toFixed(2)}, Mean Y: ${meanY.toFixed(2)}<br>
+                Median X: ${medianX.toFixed(2)}, Median Y: ${medianY.toFixed(2)}<br>
+                Correlation: ${correlation.toFixed(2)}<br>
+                Regression: Y = ${slope.toFixed(2)}X + ${intercept.toFixed(2)}
+            `;
+
+            // Generate Chart
+            renderChart(xValues, yValues);
+        }
+
+        function computeMean(arr) {
+            return arr.reduce((sum, value) => sum + value, 0) / arr.length;
+        }
+
+        function computeMedian(arr) {
+            arr.sort((a, b) => a - b);
+            let mid = Math.floor(arr.length / 2);
+            return arr.length % 2 !== 0 ? arr[mid] : (arr[mid - 1] + arr[mid]) / 2;
+        }
+
+        function computeCorrelation(x, y) {
+            let meanX = computeMean(x), meanY = computeMean(y);
+            let numerator = x.reduce((sum, xi, i) => sum + ((xi - meanX) * (y[i] - meanY)), 0);
+            let denominator = Math.sqrt(
+                x.reduce((sum, xi) => sum + Math.pow(xi - meanX, 2), 0) *
+                y.reduce((sum, yi) => sum + Math.pow(yi - meanY, 2), 0)
+            );
+            return numerator / denominator;
+        }
+
+        function computeLinearRegression(x, y) {
+            let meanX = computeMean(x), meanY = computeMean(y);
+            let numerator = x.reduce((sum, xi, i) => sum + ((xi - meanX) * (y[i] - meanY)), 0);
+            let denominator = x.reduce((sum, xi) => sum + Math.pow(xi - meanX, 2), 0);
+            let slope = numerator / denominator;
+            let intercept = meanY - (slope * meanX);
+            return { slope, intercept };
+        }
+
+        function renderChart(x, y) {
+            const ctx = document.getElementById('chartCanvas').getContext('2d');
+
+            if (chartInstance) chartInstance.destroy();
+
+            const chartType = document.getElementById("chartType").value;
+            const data = chartType === "pie" ? y : x.map((xi, i) => ({ x: xi, y: y[i] }));
+
+            chartInstance = new Chart(ctx, {
+                type: chartType,
+                data: {
+                    labels: x,
+                    datasets: [{
+                        label: `${chartType.toUpperCase()} (${xKey} vs ${yKey})`,
+                        data: data,
+                        borderColor: 'blue',
+                        backgroundColor: 'rgba(0, 0, 255, 0.5)'
+                    }]
+                }
+            });
+        }
+
+        function downloadCSV() {
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += Object.keys(globalData[0]).join(",") + "\n";
+            globalData.forEach(row => {
+                csvContent += Object.values(row).join(",") + "\n";
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "edited_data.csv");
+            document.body.appendChild(link);
+            link.click();
+        }
+    </script>
+
+</body>
+</html>
