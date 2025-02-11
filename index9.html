@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel/CSV Interactive Dashboard</title>
+
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tabulator/5.3.4/js/tabulator.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabulator/5.3.4/css/tabulator.min.css">
+
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; text-align: center; }
+        #dashboard { margin-top: 20px; }
+        #table-container { margin-top: 20px; }
+        #chart-container { display: flex; justify-content: space-around; margin-top: 20px; flex-wrap: wrap; }
+        canvas { max-width: 400px; max-height: 300px; }
+    </style>
+</head>
+<body>
+
+    <h2>Excel/CSV Interactive Dashboard</h2>
+    <input type="file" id="fileInput" accept=".csv, .xlsx">
+
+    <div id="dashboard">
+        <div id="table-container"></div>
+        <div id="chart-container">
+            <canvas id="barChart"></canvas>
+            <canvas id="pieChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', handleFile, false);
+
+        function handleFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
+
+                if (sheet.length > 1) {
+                    renderTable(sheet);
+                    generateCharts(sheet);
+                } else {
+                    alert("Invalid file format or empty data!");
+                }
+            };
+
+            if (file.name.endsWith('.csv')) {
+                reader.readAsText(file);
+            } else {
+                reader.readAsArrayBuffer(file);
+            }
+        }
+
+        function renderTable(sheetData) {
+            const headers = sheetData[0]; // First row as column headers
+            const rows = sheetData.slice(1).map(row => {
+                let obj = {};
+                headers.forEach((key, i) => obj[key] = row[i] || ""); // Handle missing values
+                return obj;
+            });
+
+            document.getElementById("table-container").innerHTML = ""; // Clear previous table
+            new Tabulator("#table-container", {
+                data: rows,
+                layout: "fitDataStretch",
+                pagination: "local",
+                paginationSize: 10,
+                movableColumns: true,
+                columns: headers.map(header => ({ title: header, field: header }))
+            });
+        }
+
+        function generateCharts(sheetData) {
+            const labels = sheetData.slice(1, 6).map(row => row[0]); // First column as labels
+            const values = sheetData.slice(1, 6).map(row => Number(row[1]) || 0); // Second column as values
+
+            document.getElementById("chart-container").innerHTML = `
+                <canvas id="barChart"></canvas>
+                <canvas id="pieChart"></canvas>
+            `; // Clear previous charts
+
+            new Chart(document.getElementById('barChart').getContext('2d'), {
+                type: 'bar',
+                data: { labels, datasets: [{ label: 'Bar Chart', data: values, backgroundColor: 'blue' }] }
+            });
+
+            new Chart(document.getElementById('pieChart').getContext('2d'), {
+                type: 'pie',
+                data: { labels, datasets: [{ data: values, backgroundColor: ['red', 'green', 'blue', 'orange', 'purple'] }] }
+            });
+        }
+    </script>
+
+</body>
+</html>
