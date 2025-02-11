@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel/CSV Interactive Dashboard</title>
+
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tabulator/5.3.4/js/tabulator.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabulator/5.3.4/css/tabulator.min.css">
+
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; text-align: center; }
+        #dashboard { margin-top: 20px; }
+        #table-container { margin-top: 20px; }
+        #chart-container { display: flex; flex-wrap: wrap; justify-content: space-around; margin-top: 20px; }
+        .chart-box { width: 45%; min-width: 300px; text-align: center; margin: 10px; }
+        canvas { width: 100%; max-height: 400px; }
+    </style>
+</head>
+<body>
+
+    <h2>Excel/CSV Interactive Dashboard</h2>
+    <input type="file" id="fileInput" accept=".csv, .xlsx">
+
+    <div id="dashboard">
+        <div id="table-container"></div>
+        <div id="chart-container"></div>
+    </div>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', handleFile, false);
+
+        function handleFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
+
+                if (sheet.length > 1) {
+                    renderTable(sheet);
+                    generateCharts(sheet);
+                } else {
+                    alert("Invalid file format or empty data!");
+                }
+            };
+
+            if (file.name.endsWith('.csv')) {
+                reader.readAsText(file);
+            } else {
+                reader.readAsArrayBuffer(file);
+            }
+        }
+
+        function renderTable(sheetData) {
+            const headers = sheetData[0]; // First row as headers
+            const rows = sheetData.slice(1).map(row => {
+                let obj = {};
+                headers.forEach((key, i) => obj[key] = row[i] || ""); // Handle missing values
+                return obj;
+            });
+
+            document.getElementById("table-container").innerHTML = ""; // Clear previous table
+            new Tabulator("#table-container", {
+                data: rows,
+                layout: "fitDataStretch",
+                pagination: "local",
+                paginationSize: 10,
+                movableColumns: true,
+                columns: headers.map(header => ({ title: header, field: header }))
+            });
+        }
+
+        function generateCharts(sheetData) {
+            const headers = sheetData[0];
+            const rows = sheetData.slice(1);
+
+            const numericCols = headers.filter((_, colIndex) => rows.every(row => !isNaN(row[colIndex]))); // Only numeric columns
+            if (numericCols.length < 2) {
+                alert("Data must contain at least one numeric column.");
+                return;
+            }
+
+            const labels = rows.map(row => row[0]); // Use first column as labels
+            const datasets = numericCols.slice(1).map((colName, index) => ({
+                label: colName,
+                data: rows.map(row => Number(row[index + 1]) || 0),
+                backgroundColor: generateRandomColors(rows.length),
+                borderColor: generateRandomColors(rows.length),
+                borderWidth: 1
+            }));
+
+            document.getElementById("chart-container").innerHTML = ""; // Clear previous charts
+
+            createChart("Bar Chart", "bar", labels, datasets);
+            createChart("Pie Chart", "pie", labels, datasets);
+            createChart("Line Chart", "line", labels, datasets);
+            createChart("Scatter Plot", "scatter", labels, datasets);
+            createChart("Histogram", "bar", labels, datasets);
+            createChart("Doughnut Chart", "doughnut", labels, datasets);
+        }
+
+        function createChart(title, type, labels, datasets) {
+            const container = document.createElement("div");
+            container.className = "chart-box";
+            container.innerHTML = `<h3>${title}</h3><canvas id="${title.replace(/\s+/g, '')}"></canvas>`;
+            document.getElementById("chart-container").appendChild(container);
+
+            new Chart(document.getElementById(title.replace(/\s+/g, '')).getContext('2d'), {
+                type: type,
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        function generateRandomColors(count) {
+            return Array.from({ length: count }, () => `rgba(${randInt(0, 255)}, ${randInt(0, 255)}, ${randInt(0, 255)}, 0.6)`);
+        }
+
+        function randInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1) + min);
+        }
+    </script>
+
+</body>
+</html>
