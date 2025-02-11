@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel/CSV AI Dashboard</title>
+    
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tabulator/5.3.4/js/tabulator.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabulator/5.3.4/css/tabulator.min.css">
+    
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; text-align: center; background: #f5f7fa; }
+        h2 { color: #2c3e50; }
+        #dashboard { margin-top: 20px; }
+        #table-container { margin-top: 20px; }
+        #chart-container { display: flex; flex-wrap: wrap; justify-content: space-around; margin-top: 20px; }
+        .chart-box { width: 45%; min-width: 300px; text-align: center; margin: 10px; background: #fff; padding: 10px; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
+        canvas { width: 100%; max-height: 400px; }
+    </style>
+</head>
+<body>
+    <h2>Excel/CSV AI Dashboard</h2>
+    <label class="file-upload">
+        Choose File
+        <input type="file" id="fileInput" accept=".csv, .xlsx">
+    </label>
+    <div id="dashboard">
+        <div id="table-container"></div>
+        <div id="chart-container"></div>
+    </div>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', handleFile, false);
+        let table;
+        window.onload = function () {
+            loadDemoDashboard();
+        };
+
+        function handleFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
+                
+                if (sheet.length > 1) {
+                    renderTable(sheet);
+                    generateCharts(sheet);
+                } else {
+                    alert("Invalid file format or empty data!");
+                }
+            };
+            
+            if (file.name.endsWith('.csv')) {
+                reader.readAsText(file);
+            } else {
+                reader.readAsArrayBuffer(file);
+            }
+        }
+
+        function loadDemoDashboard() {
+            const demoData = [
+                ["Year", "Revenue", "Expenses", "Profit"],
+                ["2018", 50000, 20000, 30000],
+                ["2019", 60000, 25000, 35000],
+                ["2020", 70000, 30000, 40000],
+                ["2021", 80000, 40000, 40000],
+                ["2022", 90000, 45000, 45000]
+            ];
+            renderTable(demoData);
+            generateCharts(demoData);
+        }
+
+        function renderTable(sheetData) {
+            const headers = sheetData[0];
+            const rows = sheetData.slice(1).map(row => {
+                let obj = {};
+                headers.forEach((key, i) => obj[key] = row[i] || "");
+                return obj;
+            });
+
+            document.getElementById("table-container").innerHTML = "";
+            table = new Tabulator("#table-container", {
+                data: rows,
+                layout: "fitDataStretch",
+                pagination: "local",
+                paginationSize: 10,
+                movableColumns: true,
+                columns: headers.map(header => ({ title: header, field: header, editor: "input" })),
+                cellEdited: function() {
+                    updateCharts();
+                }
+            });
+        }
+
+        function generateCharts(sheetData) {
+            const headers = sheetData[0];
+            const rows = sheetData.slice(1);
+            
+            const labels = rows.map(row => row[0]);
+            const values = rows.map(row => Number(row[1]) || 0);
+            
+            document.getElementById("chart-container").innerHTML = "";
+            createChart("Bar Chart", "bar", labels, values);
+            createChart("Pie Chart", "pie", labels, values);
+            createChart("Line Chart", "line", labels, values);
+            createChart("Doughnut Chart", "doughnut", labels, values);
+        }
+
+        function updateCharts() {
+            const updatedData = table.getData();
+            const labels = updatedData.map(row => row["Year"]);
+            const values = updatedData.map(row => Number(row["Revenue"]) || 0);
+            document.getElementById("chart-container").innerHTML = "";
+            createChart("Bar Chart", "bar", labels, values);
+            createChart("Pie Chart", "pie", labels, values);
+            createChart("Line Chart", "line", labels, values);
+            createChart("Doughnut Chart", "doughnut", labels, values);
+        }
+
+        function createChart(title, type, labels, values) {
+            const container = document.createElement("div");
+            container.className = "chart-box";
+            container.innerHTML = `<h3>${title}</h3><canvas id="${title.replace(/\s+/g, '')}"></canvas>`;
+            document.getElementById("chart-container").appendChild(container);
+
+            new Chart(document.getElementById(title.replace(/\s+/g, '')).getContext('2d'), {
+                type: type,
+                data: { labels, datasets: [{ data: values, backgroundColor: ['red', 'blue', 'green', 'yellow', 'purple'] }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+    </script>
+</body>
+</html>
