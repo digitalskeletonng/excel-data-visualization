@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel/CSV Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tabulator/5.3.4/js/tabulator.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabulator/5.3.4/css/tabulator.min.css">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #dashboard { display: flex; flex-direction: column; align-items: center; }
+        #chart-container { width: 80%; display: flex; justify-content: space-around; }
+        canvas { max-width: 500px; max-height: 400px; }
+    </style>
+</head>
+<body>
+    <h2>Excel/CSV Interactive Dashboard</h2>
+    <input type="file" id="fileInput" accept=".csv, .xlsx">
+    <div id="dashboard">
+        <div id="table-container"></div>
+        <div id="chart-container">
+            <canvas id="barChart"></canvas>
+            <canvas id="pieChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', handleFile, false);
+
+        function handleFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
+
+                if (sheet.length > 1) {
+                    renderTable(sheet);
+                    generateCharts(sheet);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function renderTable(sheetData) {
+            const columns = sheetData[0].map(header => ({ title: header, field: header }));
+            const rows = sheetData.slice(1).map(row => Object.fromEntries(row.map((val, i) => [columns[i].field, val])));
+
+            new Tabulator("#table-container", {
+                data: rows,
+                layout: "fitData",
+                columns: columns,
+                pagination: "local",
+                paginationSize: 10,
+                movableColumns: true,
+                filterable: true,
+            });
+        }
+
+        function generateCharts(sheetData) {
+            const labels = sheetData.slice(1, 6).map(row => row[0]);
+            const values = sheetData.slice(1, 6).map(row => row[1]);
+
+            new Chart(document.getElementById('barChart').getContext('2d'), {
+                type: 'bar',
+                data: { labels: labels, datasets: [{ label: 'Bar Chart', data: values, backgroundColor: 'blue' }] },
+            });
+
+            new Chart(document.getElementById('pieChart').getContext('2d'), {
+                type: 'pie',
+                data: { labels: labels, datasets: [{ data: values, backgroundColor: ['red', 'green', 'blue', 'orange', 'purple'] }] },
+            });
+        }
+    </script>
+</body>
+</html>
