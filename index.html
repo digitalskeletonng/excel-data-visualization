@@ -1,297 +1,497 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Excel & CSV Data Visualizer with AI</title>
-    <link rel="stylesheet" href="styles.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.3/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <title>Statistical Dashboard Generator</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f7f6;
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f4f8;
             color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background-color: #4CAF50;
+            color: white;
             padding: 20px;
+            text-align: center;
+            font-size: 28px;
+            border-bottom: 4px solid #388E3C;
         }
 
         .container {
-            max-width: 1200px;
-            margin: 0 auto;
+            width: 80%;
+            margin: 20px auto;
             padding: 20px;
-            background-color: #fff;
-            border-radius: 10px;
-            box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.1);
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
-        h1 {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        input[type="file"] {
-            display: block;
-            margin: 0 auto;
-            padding: 10px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-
-        #dataContainer,
-        #visualizationContainer,
-        #aiModelResult {
-            margin-top: 40px;
+        .table-container {
+            overflow-x: auto;
+            margin-bottom: 20px;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
+            margin-bottom: 20px;
         }
 
-        table,
-        th,
-        td {
+        th, td {
+            padding: 12px;
             border: 1px solid #ddd;
-        }
-
-        th,
-        td {
-            padding: 10px;
             text-align: center;
-        }
-
-        canvas {
-            max-width: 100%;
-        }
-
-        .btn {
-            padding: 10px 20px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        .btn:hover {
-            background-color: #45a049;
-        }
-
-        select,
-        button {
-            margin-top: 20px;
             font-size: 16px;
         }
 
-        #predictionResult {
-            margin-top: 20px;
+        th {
+            background-color: #f2f2f2;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        td {
+            background-color: #fff;
+            font-weight: normal;
+        }
+
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            font-size: 14px;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+
+        .button-container button {
+            padding: 12px 20px;
+            font-size: 16px;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .button-container button:hover {
+            opacity: 0.8;
+        }
+
+        .chart-container {
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+            justify-content: center;
+        }
+
+        .chart-container canvas {
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        #generate-dashboard {
+            background-color: #ff5722;
+            color: white;
+            font-size: 20px;
+            padding: 18px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        #generate-dashboard:hover {
+            background-color: #e64a19;
+        }
+
+        .add-delete-btns {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+
+        .add-delete-btns button {
+            background-color: #2196F3;
+            padding: 12px 20px;
+            margin: 5px;
+            font-size: 16px;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+
+        .add-delete-btns button:hover {
+            background-color: #1976D2;
+        }
+
+        .chart-title {
+            text-align: center;
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 10px;
+            font-family: 'Arial', sans-serif;
+            color: #333;
+            padding: 5px;
+        }
+
+        .chart-container canvas {
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+
+        .button-container {
+            margin-bottom: 20px;
         }
     </style>
 </head>
-
 <body>
+    <header>
+        Statistical Dashboard Generator
+    </header>
 
     <div class="container">
-        <h1>Excel & CSV Data Visualizer with AI</h1>
-
-        <!-- File upload form -->
-        <input type="file" id="fileUpload" accept=".xlsx, .xls, .csv" onchange="handleFileUpload(event)">
-
-        <div id="dataContainer">
-            <h2>Extracted Data</h2>
-            <table id="dataTable">
+        <!-- Data Table -->
+        <div class="table-container">
+            <table id="data-table">
                 <thead>
-                    <tr></tr> <!-- Dynamic table headers will be inserted here -->
+                    <tr>
+                        <th contenteditable="true">Column 1</th>
+                        <th contenteditable="true">Column 2</th>
+                        <th contenteditable="true">Column 3</th>
+                        <th contenteditable="true">Column 4</th>
+                        <th contenteditable="true">Column 5</th>
+                    </tr>
                 </thead>
                 <tbody>
-                    <!-- Dynamic table rows will be inserted here -->
+                    <tr>
+                        <td contenteditable="true">A1</td>
+                        <td contenteditable="true">B1</td>
+                        <td contenteditable="true">10</td>
+                        <td contenteditable="true">20</td>
+                        <td contenteditable="true">30</td>
+                    </tr>
+                    <tr>
+                        <td contenteditable="true">A2</td>
+                        <td contenteditable="true">B2</td>
+                        <td contenteditable="true">20</td>
+                        <td contenteditable="true">30</td>
+                        <td contenteditable="true">40</td>
+                    </tr>
+                    <tr>
+                        <td contenteditable="true">A3</td>
+                        <td contenteditable="true">B3</td>
+                        <td contenteditable="true">30</td>
+                        <td contenteditable="true">40</td>
+                        <td contenteditable="true">50</td>
+                    </tr>
+                    <tr>
+                        <td contenteditable="true">A4</td>
+                        <td contenteditable="true">B4</td>
+                        <td contenteditable="true">40</td>
+                        <td contenteditable="true">50</td>
+                        <td contenteditable="true">60</td>
+                    </tr>
+                    <tr>
+                        <td contenteditable="true">A5</td>
+                        <td contenteditable="true">B5</td>
+                        <td contenteditable="true">50</td>
+                        <td contenteditable="true">60</td>
+                        <td contenteditable="true">70</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
 
-        <div>
-            <button class="btn" onclick="preprocessData()">Remove Missing Data</button>
-            <button class="btn" onclick="normalizeData()">Normalize Data</button>
+        <!-- Add/Delete Row/Column Buttons -->
+        <div class="add-delete-btns">
+            <button id="add-row">Add Row</button>
+            <button id="delete-row">Delete Row</button>
+            <button id="add-column">Add Column</button>
+            <button id="delete-column">Delete Column</button>
         </div>
 
-        <div id="visualizationContainer">
-            <h2>Data Visualization</h2>
-            <label for="chartType">Select Chart Type: </label>
-            <select id="chartType">
-                <option value="line">Line Chart</option>
-                <option value="bar">Bar Chart</option>
-                <option value="pie">Pie Chart</option>
-                <option value="scatter">Scatter Chart</option>
-            </select>
-            <canvas id="dataChart"></canvas>
+        <!-- Generate Dashboard Button -->
+        <div class="button-container">
+            <button id="generate-dashboard">Generate Dashboard</button>
         </div>
 
-        <div id="aiModelResult">
-            <h2>AI Insights</h2>
-            <p id="predictionResult"></p>
+        <!-- Chart Container -->
+        <div class="chart-container">
+            <div>
+                <div contenteditable="true" class="chart-title">Bar Chart</div>
+                <canvas id="bar-chart" width="400" height="300"></canvas>
+            </div>
+            <div>
+                <div contenteditable="true" class="chart-title">Pie Chart</div>
+                <canvas id="pie-chart" width="400" height="300"></canvas>
+            </div>
+            <div>
+                <div contenteditable="true" class="chart-title">Line Chart</div>
+                <canvas id="line-chart" width="400" height="300"></canvas>
+            </div>
+            <div>
+                <div contenteditable="true" class="chart-title">Doughnut Chart</div>
+                <canvas id="doughnut-chart" width="400" height="300"></canvas>
+            </div>
+            <div>
+                <div contenteditable="true" class="chart-title">Radar Chart</div>
+                <canvas id="radar-chart" width="400" height="300"></canvas>
+            </div>
+            <div>
+                <div contenteditable="true" class="chart-title">Polar Area Chart</div>
+                <canvas id="polar-area-chart" width="400" height="300"></canvas>
+            </div>
+            <div>
+                <div contenteditable="true" class="chart-title">Scatter Chart</div>
+                <canvas id="scatter-chart" width="400" height="300"></canvas>
+            </div>
+            <div>
+                <div contenteditable="true" class="chart-title">Bubble Chart</div>
+                <canvas id="bubble-chart" width="400" height="300"></canvas>
+            </div>
+            <div>
+                <div contenteditable="true" class="chart-title">Area Chart</div>
+                <canvas id="area-chart" width="400" height="300"></canvas>
+            </div>
+            <div>
+                <div contenteditable="true" class="chart-title">Horizontal Bar Chart</div>
+                <canvas id="horizontal-bar-chart" width="400" height="300"></canvas>
+            </div>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        let data = [];
+        // Add Row and Column functionality
+        document.getElementById('add-row').addEventListener('click', function() {
+            let table = document.getElementById('data-table').getElementsByTagName('tbody')[0];
+            let row = table.insertRow();
+            for (let i = 0; i < table.rows[0].cells.length; i++) {
+                let cell = row.insertCell(i);
+                cell.contentEditable = "true";
+            }
+        });
 
-        function handleFileUpload(event) {
-            const file = event.target.files[0];
-            if (!file) {
-                alert("Please upload an Excel or CSV file.");
-                return;
+        document.getElementById('delete-row').addEventListener('click', function() {
+            let table = document.getElementById('data-table').getElementsByTagName('tbody')[0];
+            if (table.rows.length > 1) {
+                table.deleteRow(table.rows.length - 1);
+            }
+        });
+
+        document.getElementById('add-column').addEventListener('click', function() {
+            let table = document.getElementById('data-table');
+            let rows = table.rows;
+            for (let i = 0; i < rows.length; i++) {
+                let cell = rows[i].insertCell(-1);
+                cell.contentEditable = "true";
+            }
+        });
+
+        document.getElementById('delete-column').addEventListener('click', function() {
+            let table = document.getElementById('data-table');
+            let rows = table.rows;
+            if (rows[0].cells.length > 1) {
+                for (let i = 0; i < rows.length; i++) {
+                    rows[i].deleteCell(rows[i].cells.length - 1);
+                }
+            }
+        });
+
+        // Generate Dashboard functionality
+        document.getElementById('generate-dashboard').addEventListener('click', function() {
+            let table = document.getElementById('data-table');
+            let data = [];
+            let labels = [];
+            let values = [];
+
+            // Get table data
+            for (let i = 1; i < table.rows.length; i++) {
+                let row = table.rows[i];
+                let rowData = [];
+                for (let j = 0; j < row.cells.length; j++) {
+                    rowData.push(row.cells[j].innerText);
+                }
+                data.push(rowData);
             }
 
-            const reader = new FileReader();
-
-            if (file.name.endsWith('.csv')) {
-                reader.onload = function (e) {
-                    const csvData = e.target.result;
-                    const parsedData = parseCSV(csvData);
-                    data = parsedData;
-                    displayData(data);
-                    displayVisualization(data);
-                    runAIModel(data);
-                };
-                reader.readAsText(file);
-            } else {
-                reader.onload = function (e) {
-                    const binaryStr = e.target.result;
-                    const workbook = XLSX.read(binaryStr, { type: 'binary' });
-                    const sheetName = workbook.SheetNames[0];
-                    const sheet = workbook.Sheets[sheetName];
-                    const parsedData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-                    data = parsedData;
-                    displayData(data);
-                    displayVisualization(data);
-                    runAIModel(data);
-                };
-                reader.readAsBinaryString(file);
+            // Get labels from the first row (header)
+            let header = table.rows[0];
+            for (let i = 0; i < header.cells.length; i++) {
+                labels.push(header.cells[i].innerText);
             }
-        }
 
-        function parseCSV(csvData) {
-            const rows = csvData.split('\n').map(row => row.split(','));
-            return rows;
-        }
-
-        function displayData(data) {
-            const table = document.getElementById("dataTable");
-            const headers = data[0];
-            const rows = data.slice(1);
-
-            // Clear previous table data
-            table.innerHTML = '';
-
-            // Insert table headers
-            const headerRow = table.insertRow();
-            headers.forEach(header => {
-                const th = document.createElement('th');
-                th.textContent = header;
-                headerRow.appendChild(th);
-            });
-
-            // Insert table rows
-            rows.forEach(row => {
-                const tableRow = table.insertRow();
-                row.forEach(cell => {
-                    const td = tableRow.insertCell();
-                    td.textContent = cell;
-                });
-            });
-        }
-
-        function displayVisualization(data) {
-            const labels = data[0].slice(1); // Assuming the first row is headers
-            const values = data.slice(1).map(row => row[1]); // Extracting data from the first column of the rest of the rows
-
-            const chartType = document.getElementById("chartType").value; // Get selected chart type from user input
-
-            // Create a chart using Chart.js
-            const ctx = document.getElementById("dataChart").getContext("2d");
-            const chart = new Chart(ctx, {
-                type: chartType,
+            // Bar Chart
+            const barCtx = document.getElementById('bar-chart').getContext('2d');
+            new Chart(barCtx, {
+                type: 'bar',
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'Data Visualization',
-                        data: values,
-                        borderColor: 'rgb(75, 192, 192)',
-                        backgroundColor: chartType === 'bar' ? 'rgba(75, 192, 192, 0.2)' : 'transparent',
-                        tension: 0.1
+                        label: 'Bar Chart',
+                        data: data.map(row => row[2]),  // Using 3rd column for bar chart
+                        backgroundColor: '#4CAF50',
+                        borderColor: '#388E3C',
+                        borderWidth: 1
+                    }]
+                }
+            });
+
+            // Pie Chart
+            const pieCtx = document.getElementById('pie-chart').getContext('2d');
+            new Chart(pieCtx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Pie Chart',
+                        data: data.map(row => row[3]),  // Using 4th column for pie chart
+                        backgroundColor: ['#4CAF50', '#FF5722', '#FFC107', '#2196F3', '#9C27B0'],
+                        borderWidth: 1
+                    }]
+                }
+            });
+
+            // Line Chart
+            const lineCtx = document.getElementById('line-chart').getContext('2d');
+            new Chart(lineCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Line Chart',
+                        data: data.map(row => row[4]),  // Using 5th column for line chart
+                        borderColor: '#FF5722',
+                        backgroundColor: 'rgba(255, 87, 34, 0.2)',
+                        borderWidth: 2
+                    }]
+                }
+            });
+
+            // Doughnut Chart
+            const doughnutCtx = document.getElementById('doughnut-chart').getContext('2d');
+            new Chart(doughnutCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Doughnut Chart',
+                        data: data.map(row => row[1]),  // Using 2nd column for doughnut chart
+                        backgroundColor: ['#FFEB3B', '#FF9800', '#9C27B0', '#3F51B5', '#4CAF50'],
+                        borderWidth: 1
+                    }]
+                }
+            });
+
+            // Radar Chart
+            const radarCtx = document.getElementById('radar-chart').getContext('2d');
+            new Chart(radarCtx, {
+                type: 'radar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Radar Chart',
+                        data: data.map(row => row[2]),
+                        borderColor: '#2196F3',
+                        backgroundColor: 'rgba(33, 150, 243, 0.2)',
+                        borderWidth: 2
+                    }]
+                }
+            });
+
+            // Polar Area Chart
+            const polarCtx = document.getElementById('polar-area-chart').getContext('2d');
+            new Chart(polarCtx, {
+                type: 'polarArea',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Polar Area Chart',
+                        data: data.map(row => row[3]),
+                        backgroundColor: ['#F44336', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5'],
+                        borderWidth: 1
+                    }]
+                }
+            });
+
+            // Scatter Chart
+            const scatterCtx = document.getElementById('scatter-chart').getContext('2d');
+            new Chart(scatterCtx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Scatter Chart',
+                        data: data.map(row => ({x: row[2], y: row[4]})),  // Using 3rd and 5th columns
+                        backgroundColor: '#FFEB3B',
+                        borderColor: '#FFC107',
+                        borderWidth: 1
+                    }]
+                }
+            });
+
+            // Bubble Chart
+            const bubbleCtx = document.getElementById('bubble-chart').getContext('2d');
+            new Chart(bubbleCtx, {
+                type: 'bubble',
+                data: {
+                    datasets: [{
+                        label: 'Bubble Chart',
+                        data: data.map(row => ({x: row[0], y: row[1], r: row[2]})),  // Using 1st, 2nd and 3rd columns
+                        backgroundColor: '#8BC34A',
+                        borderColor: '#4CAF50',
+                        borderWidth: 1
+                    }]
+                }
+            });
+
+            // Area Chart
+            const areaCtx = document.getElementById('area-chart').getContext('2d');
+            new Chart(areaCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Area Chart',
+                        data: data.map(row => row[1]),
+                        fill: true,
+                        backgroundColor: 'rgba(33, 150, 243, 0.2)',
+                        borderColor: '#3F51B5',
+                        borderWidth: 2
+                    }]
+                }
+            });
+
+            // Horizontal Bar Chart
+            const horizontalBarCtx = document.getElementById('horizontal-bar-chart').getContext('2d');
+            new Chart(horizontalBarCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Horizontal Bar Chart',
+                        data: data.map(row => row[3]),
+                        backgroundColor: '#9C27B0',
+                        borderColor: '#7B1FA2',
+                        borderWidth: 1
                     }]
                 },
                 options: {
-                    responsive: true,
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                label: function (tooltipItem) {
-                                    return tooltipItem.raw.toFixed(2); // Display value with 2 decimal places
-                                }
-                            }
-                        }
-                    }
+                    indexAxis: 'y'
                 }
             });
-        }
-
-        function runAIModel(data) {
-            const numbers = data.slice(1).map(row => row[1]); // Assuming numeric data in the second column
-            const labels = data[0].slice(1); // Labels are the first row, excluding the first column
-
-            // Prepare training data
-            const x = numbers.map((_, index) => index); // Use index as independent variable
-            const y = numbers; // Dependent variable: the actual data values
-
-            // Convert arrays into TensorFlow tensors
-            const xTensor = tf.tensor1d(x);
-            const yTensor = tf.tensor1d(y);
-
-            // Define a simple linear regression model
-            const model = tf.sequential();
-            model.add(tf.layers.dense({ units: 1, inputShape: [1] }));
-            model.compile({ optimizer: 'sgd', loss: 'meanSquaredError' });
-
-            // Train the model
-            model.fit(xTensor, yTensor, { epochs: 100 }).then(() => {
-                // Predict using the model
-                const output = model.predict(xTensor);
-
-                // Get predicted values and display them
-                output.data().then(predictions => {
-                    const predictedResults = predictions.map(prediction => prediction.toFixed(2));
-                    const result = document.getElementById('predictionResult');
-                    result.textContent = `AI Model Prediction (Linear Regression): ${predictedResults.join(', ')}`;
-                });
-            });
-        }
-
-        function preprocessData() {
-            // Remove rows with missing values
-            data = data.filter(row => !row.includes('')); // Assuming missing values are represented as empty cells
-            displayData(data); // Re-display the cleaned data
-        }
-
-        function normalizeData() {
-            const values = data.slice(1).map(row => row[1]); // Assuming data in second column
-            const min = Math.min(...values);
-            const max = Math.max(...values);
-
-            // Normalize the data (min-max scaling)
-            const normalizedData = values.map(value => (value - min) / (max - min));
-
-            // Replace the original data with normalized data for visualization
-            for (let i = 1; i < data.length; i++) {
-                data[i][1] = normalizedData[i - 1]; // Update the values in the data array
-            }
-
-            displayData(data); // Re-display the normalized data
-        }
+        });
     </script>
-
 </body>
-
 </html>
