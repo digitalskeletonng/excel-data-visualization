@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Excel Dashboard Generator</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.1/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f8ff;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            width: 90%;
+            margin: 20px auto;
+            text-align: center;
+        }
+
+        h1 {
+            color: #4CAF50;
+            font-size: 36px;
+            margin-bottom: 20px;
+        }
+
+        .table-container {
+            margin: 20px 0;
+            overflow-x: auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 5px;
+            box-sizing: border-box;
+            border: 1px solid #ddd;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .chart-container {
+            margin: 20px 0;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 40px; /* Add space between charts */
+        }
+
+        .chart-container canvas {
+            width: 100%;
+            height: 400px;
+        }
+
+        .button-group {
+            margin-top: 20px;
+        }
+
+        .button-group button {
+            background-color: #f39c12;
+            margin: 0 10px;
+        }
+
+        .button-group button:hover {
+            background-color: #e67e22;
+        }
+
+        .chart-title-input {
+            margin: 10px;
+            font-size: 16px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 300px;
+        }
+
+        #correlation, #regression, #chiSquare {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e7e7e7;
+            border-radius: 5px;
+            display: none;
+        }
+
+        .chart-title-input input {
+            margin-bottom: 10px;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Interactive Excel Dashboard Generator</h1>
+
+    <div class="table-container">
+        <table id="data-table">
+            <thead>
+                <tr>
+                    <th contenteditable="true">Column 1</th>
+                    <th contenteditable="true">Column 2</th>
+                    <th contenteditable="true">Column 3</th>
+                    <th contenteditable="true">Column 4</th>
+                    <th contenteditable="true">Column 5</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td contenteditable="true">10</td>
+                    <td contenteditable="true">20</td>
+                    <td contenteditable="true">30</td>
+                    <td contenteditable="true">40</td>
+                    <td contenteditable="true">50</td>
+                </tr>
+                <tr>
+                    <td contenteditable="true">15</td>
+                    <td contenteditable="true">25</td>
+                    <td contenteditable="true">35</td>
+                    <td contenteditable="true">45</td>
+                    <td contenteditable="true">55</td>
+                </tr>
+                <tr>
+                    <td contenteditable="true">20</td>
+                    <td contenteditable="true">30</td>
+                    <td contenteditable="true">40</td>
+                    <td contenteditable="true">50</td>
+                    <td contenteditable="true">60</td>
+                </tr>
+                <tr>
+                    <td contenteditable="true">25</td>
+                    <td contenteditable="true">35</td>
+                    <td contenteditable="true">45</td>
+                    <td contenteditable="true">55</td>
+                    <td contenteditable="true">65</td>
+                </tr>
+                <tr>
+                    <td contenteditable="true">30</td>
+                    <td contenteditable="true">40</td>
+                    <td contenteditable="true">50</td>
+                    <td contenteditable="true">60</td>
+                    <td contenteditable="true">70</td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="button-group">
+            <button onclick="addRow()">Add Row</button>
+            <button onclick="deleteRow()">Delete Row</button>
+            <button onclick="addColumn()">Add Column</button>
+            <button onclick="deleteColumn()">Delete Column</button>
+        </div>
+    </div>
+
+    <div class="chart-title-input">
+        <label for="barChartTitle">Bar Chart Title:</label>
+        <input type="text" id="barChartTitle" value="Bar Chart Example">
+    </div>
+
+    <div class="chart-title-input">
+        <label for="pieChartTitle">Pie Chart Title:</label>
+        <input type="text" id="pieChartTitle" value="Pie Chart Example">
+    </div>
+
+    <div class="chart-title-input">
+        <label for="lineChartTitle">Line Chart Title:</label>
+        <input type="text" id="lineChartTitle" value="Line Chart Example">
+    </div>
+
+    <button onclick="generateDashboard()">Generate Dashboard</button>
+
+    <div id="charts" class="chart-container">
+        <canvas id="barChart"></canvas>
+    </div>
+
+    <div id="charts" class="chart-container">
+        <canvas id="pieChart"></canvas>
+    </div>
+
+    <div id="charts" class="chart-container">
+        <canvas id="lineChart"></canvas>
+    </div>
+
+    <div id="correlation">
+        <h3>Correlation Analysis</h3>
+        <p id="correlationResult"></p>
+    </div>
+
+    <div id="regression">
+        <h3>Regression Analysis</h3>
+        <p id="regressionResult"></p>
+    </div>
+
+    <!-- Chi-Square Test -->
+    <div id="chiSquare">
+        <h3>Chi-Square Test</h3>
+        <p>Enter Observed and Expected Values for Chi-Square Test</p>
+        <label for="observedValues">Observed Values (comma-separated):</label>
+        <input type="text" id="observedValues" placeholder="e.g. 10, 20, 30">
+        <br>
+        <label for="expectedValues">Expected Values (comma-separated):</label>
+        <input type="text" id="expectedValues" placeholder="e.g. 15, 25, 35">
+        <br>
+        <button onclick="performChiSquareTest()">Run Chi-Square Test</button>
+        <p id="chiSquareResult"></p>
+    </div>
+
+    <div class="button-group">
+        <button onclick="downloadExcel()">Download Excel</button>
+        <button onclick="window.print()">Print</button>
+    </div>
+</div>
+
+<script>
+// Add Row
+function addRow() {
+    var table = document.getElementById("data-table").getElementsByTagName('tbody')[0];
+    var newRow = table.insertRow(table.rows.length);
+    for (var i = 0; i < table.rows[0].cells.length; i++) {
+        var cell = newRow.insertCell(i);
+        cell.contentEditable = "true";
+    }
+}
+
+// Delete Row
+function deleteRow() {
+    var table = document.getElementById("data-table");
+    if (table.rows.length > 1) {
+        table.deleteRow(table.rows.length - 1);
+    }
+}
+
+// Add Column
+function addColumn() {
+    var table = document.getElementById("data-table");
+    for (var i = 0; i < table.rows.length; i++) {
+        var newCell = table.rows[i].insertCell(table.rows[i].cells.length);
+        newCell.contentEditable = "true";
+    }
+}
+
+// Delete Column
+function deleteColumn() {
+    var table = document.getElementById("data-table");
+    if (table.rows[0].cells.length > 1) {
+        for (var i = 0; i < table.rows.length; i++) {
+            table.rows[i].deleteCell(table.rows[i].cells.length - 1);
+        }
+    }
+}
+
+// Generate Dashboard
+function generateDashboard() {
+    var data = [];
+    var labels = [];
+    var table = document.getElementById("data-table");
+    
+    for (var i = 1; i < table.rows.length; i++) {
+        var rowData = [];
+        for (var j = 0; j < table.rows[i].cells.length; j++) {
+            rowData.push(parseInt(table.rows[i].cells[j].innerText));
+        }
+        data.push(rowData);
+    }
+
+    var barChartCtx = document.getElementById('barChart').getContext('2d');
+    var pieChartCtx = document.getElementById('pieChart').getContext('2d');
+    var lineChartCtx = document.getElementById('lineChart').getContext('2d');
+
+    var barChartTitle = document.getElementById('barChartTitle').value;
+    var pieChartTitle = document.getElementById('pieChartTitle').value;
+    var lineChartTitle = document.getElementById('lineChartTitle').value;
+
+    new Chart(barChartCtx, {
+        type: 'bar',
+        data: {
+            labels: ["Column 1", "Column 2", "Column 3", "Column 4", "Column 5"],
+            datasets: [{
+                label: barChartTitle,
+                data: data[0],
+                backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1
+            }]
+        }
+    });
+
+    new Chart(pieChartCtx, {
+        type: 'pie',
+        data: {
+            labels: ["Column 1", "Column 2", "Column 3", "Column 4", "Column 5"],
+            datasets: [{
+                label: pieChartTitle,
+                data: data[0],
+                backgroundColor: ['red', 'blue', 'green', 'yellow', 'purple'],
+            }]
+        }
+    });
+
+    new Chart(lineChartCtx, {
+        type: 'line',
+        data: {
+            labels: ["Row 1", "Row 2", "Row 3", "Row 4", "Row 5"],
+            datasets: [{
+                label: lineChartTitle,
+                data: data.map(row => row[0]),
+                borderColor: 'rgba(255, 99, 132, 1)',
+                borderWidth: 2,
+                fill: false
+            }]
+        }
+    });
+
+    performCorrelation(data);
+    performRegression(data);
+}
+
+// Correlation Analysis
+function performCorrelation(data) {
+    var x = data.map(row => row[0]);
+    var y = data.map(row => row[1]);
+
+    var correlation = calculateCorrelation(x, y);
+    document.getElementById("correlationResult").innerText = `Correlation Coefficient: ${correlation}`;
+    document.getElementById("correlation").style.display = 'block';
+}
+
+// Pearson's Correlation Coefficient
+function calculateCorrelation(x, y) {
+    var n = x.length;
+    var sumX = x.reduce((a, b) => a + b, 0);
+    var sumY = y.reduce((a, b) => a + b, 0);
+    var sumXY = x.reduce((sum, xi, idx) => sum + (xi * y[idx]), 0);
+    var sumX2 = x.reduce((sum, xi) => sum + (xi * xi), 0);
+    var sumY2 = y.reduce((sum, yi) => sum + (yi * yi), 0);
+    
+    var numerator = (n * sumXY) - (sumX * sumY);
+    var denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+    return numerator / denominator;
+}
+
+// Regression Analysis (Linear Regression)
+function performRegression(data) {
+    var x = data.map(row => row[0]);
+    var y = data.map(row => row[1]);
+
+    var regressionResult = linearRegression(x, y);
+    document.getElementById("regressionResult").innerText = `Linear Regression: y = ${regressionResult.slope}x + ${regressionResult.intercept}`;
+    document.getElementById("regression").style.display = 'block';
+}
+
+// Linear Regression
+function linearRegression(x, y) {
+    var n = x.length;
+    var sumX = x.reduce((a, b) => a + b, 0);
+    var sumY = y.reduce((a, b) => a + b, 0);
+    var sumXY = x.reduce((sum, xi, idx) => sum + (xi * y[idx]), 0);
+    var sumX2 = x.reduce((sum, xi) => sum + (xi * xi), 0);
+    
+    var slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+    var intercept = (sumY - slope * sumX) / n;
+
+    return { slope, intercept };
+}
+
+// Chi-Square Test
+function performChiSquareTest() {
+    var observedValues = document.getElementById('observedValues').value.split(',').map(Number);
+    var expectedValues = document.getElementById('expectedValues').value.split(',').map(Number);
+
+    if (observedValues.length !== expectedValues.length) {
+        alert('Observed and Expected values must have the same number of elements');
+        return;
+    }
+
+    var chiSquareValue = 0;
+    for (var i = 0; i < observedValues.length; i++) {
+        chiSquareValue += Math.pow(observedValues[i] - expectedValues[i], 2) / expectedValues[i];
+    }
+
+    document.getElementById('chiSquareResult').innerText = `Chi-Square Statistic: ${chiSquareValue.toFixed(2)}`;
+    document.getElementById("chiSquare").style.display = 'block';
+}
+
+// Download Excel file
+function downloadExcel() {
+    var table = document.getElementById('data-table');
+    var wb = XLSX.utils.table_to_book(table, { sheet: 'Sheet1' });
+    var wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'binary' });
+    var buf = new ArrayBuffer(wbout.length);
+    var view = new Uint8Array(buf);
+    for (var i = 0; i < wbout.length; i++) {
+        view[i] = wbout.charCodeAt(i) & 0xFF;
+    }
+    var blob = new Blob([buf], { type: 'application/octet-stream' });
+    saveAs(blob, 'excel-dashboard.xlsx');
+}
+</script>
+</body>
+</html>
